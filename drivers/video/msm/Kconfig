@@ -83,7 +83,7 @@ config FB_MSM_EBI2
 
 config FB_MSM_MDDI
 	bool
-	default y
+	default n
 
 config FB_MSM_MIPI_DSI
 	bool
