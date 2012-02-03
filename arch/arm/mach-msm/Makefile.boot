@@ -17,6 +17,11 @@ initrd_phys-$(CONFIG_ARCH_MSM7X27)	:= 0x0A000000
    zreladdr-$(CONFIG_ARCH_MSM7X27A)	:= 0x00208000
 params_phys-$(CONFIG_ARCH_MSM7X27A)	:= 0x00200100
 
+# override for HTC Leo
+  zreladdr-$(CONFIG_MACH_HTCLEO)	:= 0x11808000
+params_phys-$(CONFIG_MACH_HTCLEO)	:= 0x11800100
+initrd_phys-$(CONFIG_MACH_HTCLEO)	:= 0x12200000
+
 # MSM7x30
    zreladdr-$(CONFIG_ARCH_MSM7X30)	:= 0x00208000
 params_phys-$(CONFIG_ARCH_MSM7X30)	:= 0x00200100
