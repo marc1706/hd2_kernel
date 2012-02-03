@@ -2,7 +2,7 @@ obj-y += io.o dma.o memory.o
 ifndef CONFIG_ARM_ARCH_TIMER
 obj-y += timer.o
 endif
-obj-y += clock.o clock-voter.o clock-dummy.o
+#obj-y += clock.o clock-voter.o clock-dummy.o
 obj-y += modem_notifier.o subsystem_map.o
 obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o
 obj-$(CONFIG_DEBUG_FS) += nohlt.o clock-debug.o
@@ -10,7 +10,7 @@ obj-$(CONFIG_KEXEC) += msm_kexec.o
 
 obj-$(CONFIG_MSM_PROC_COMM) += proc_comm.o
 ifndef CONFIG_ARCH_MSM8X60
-	obj-$(CONFIG_MSM_PROC_COMM) += clock-pcom.o
+	#obj-$(CONFIG_MSM_PROC_COMM) += clock-pcom.o
 	obj-$(CONFIG_MSM_PROC_COMM) += vreg.o mpp.o
 	ifdef CONFIG_MSM_PROC_COMM
 ifndef CONFIG_ARCH_FSM9XXX
@@ -18,6 +18,15 @@ ifndef CONFIG_ARCH_FSM9XXX
 endif
 		obj-$(CONFIG_DEBUG_FS) += pmic_debugfs.o
 	endif
+endif
+obj-y += dex_comm.o
+ifdef CONFIG_MACH_HTCLEO
+obj-$(CONFIG_MSM_SMD) +=  smd_qmi_wince.o
+obj-y += clock-wince.o 
+else
+obj-$(CONFIG_MSM_SMD) +=  smd_qmi.o
+obj-y += clock-pcom.o
+obj-y += clock.o clock-voter.o clock-dummy.o
 endif
 
 obj-y += acpuclock.o
@@ -104,7 +113,7 @@ endif
 endif
 obj-$(CONFIG_MSM_SDIO_TTY) += sdio_tty.o
 obj-$(CONFIG_MSM_SMD_TTY) += smd_tty.o
-obj-$(CONFIG_MSM_SMD_QMI) += smd_qmi.o
+#obj-$(CONFIG_MSM_SMD_QMI) += smd_qmi.o
 obj-$(CONFIG_MSM_SMD_PKT) += smd_pkt.o
 obj-$(CONFIG_MSM_SDIO_CMUX) += sdio_cmux.o
 obj-$(CONFIG_MSM_DSPS) += msm_dsps.o
@@ -257,6 +266,11 @@ obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-keypad.o board-sapphire-panel.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-mmc.o board-sapphire-wifi.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-rfkill.o msm_vibrator.o
 
+obj-$(CONFIG_MACH_HTCLEO) += board-htcleo-audio.o board-htcleo-acoustic.o
+obj-$(CONFIG_MACH_HTCLEO) += board-htcleo.o board-htcleo-panel.o board-htcleo-keypad.o
+obj-$(CONFIG_MACH_HTCLEO) += board-htcleo-ts.o board-htcleo-mmc.o ieee754-df.o
+obj-$(CONFIG_MACH_HTCLEO) += board-htcleo-microp.o
+
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 
 obj-$(CONFIG_ARCH_FSM9XXX) += board-fsm9xxx.o
@@ -318,3 +332,5 @@ endif
 
 obj-$(CONFIG_ARCH_MSM8960) += mdm2.o mdm_common.o
 obj-$(CONFIG_MSM_RTB) += msm_rtb.o
+
+obj-$(CONFIG_HTC_FB_CONSOLE) += htc_fb_console.o
