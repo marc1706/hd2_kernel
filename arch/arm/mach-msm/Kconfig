@@ -65,7 +65,6 @@ config ARCH_QSD8X50
 	select CPU_USE_DOMAINS
 	select EMULATE_DOMAIN_MANAGER_V7
 	select MSM_GPIOMUX
-	select MSM_DALRPC
 
 config ARCH_MSM8X60
 	bool "MSM8X60"
