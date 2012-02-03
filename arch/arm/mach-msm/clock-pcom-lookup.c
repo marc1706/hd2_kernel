@@ -410,6 +410,10 @@ static struct clk_lookup msm_clocks_8x50[] = {
 	CLK_LOOKUP("iface_clk",		grp_2d_p_clk.c,	"kgsl-2d0.0"),
 	CLK_LOOKUP("core_clk",		gsbi_clk.c,	"qup_i2c.4"),
 	CLK_LOOKUP("iface_clk",		gsbi_p_clk.c,	"qup_i2c.4"),
+	
+#ifdef CONFIG_MACH_HTCLEO
+	CLOCK(NULL, 0, NULL, 0),
+#endif
 };
 
 struct clock_init_data qds8x50_clock_init_data __initdata = {
