@@ -62,6 +62,8 @@ config MTD_MSM_NAND
 config MTD_HTCLEO_NAND
 	tristate "HTCLEO NAND Device Support"
 	depends on MTD && ARCH_MSM
+	select CRC16
+	select BITREVERSE
 	select MTD_NAND_IDS
 	default y
 	help
