@@ -91,6 +91,10 @@ struct msm_i2c_dev {
 	struct timer_list            pwr_timer;
 	int                          clk_state;
 	void                         *complete;
+	// not sure for what this is needed ...
+	int                 clk_drv_str;
+	int                 dat_drv_str;
+	int                 skip_recover;
 
 	struct pm_qos_request_list pm_qos_req;
 };

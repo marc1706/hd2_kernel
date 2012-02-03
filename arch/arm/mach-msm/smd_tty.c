@@ -371,8 +371,26 @@ static void smd_tty_close(struct tty_struct *tty, struct file *f)
 
 static int smd_tty_write(struct tty_struct *tty, const unsigned char *buf, int len)
 {
+	int avail, ret, runfix = 0;
+	static int init=0;
+	const unsigned char* firstcall="AT@BRIC=0\r";
+	const unsigned char* secondcall="AT+COPS=2\r";
+	unsigned int call_len;
 	struct smd_tty_info *info = tty->driver_data;
-	int avail;
+	
+	if(len>7 && !init && htcleo_is_nand_boot()) {
+		if(strncmp(buf, "AT+CFUN", 7)==0) {
+			pr_info("SMD AT FIX!\n");
+			call_len = strlen(firstcall);
+			avail = smd_write_avail(info->ch);
+			if (call_len > avail)
+				call_len = avail;
+			ret = smd_write(info->ch, firstcall, call_len);
+			init=1;
+			runfix=1;
+			msleep(100);
+		}
+	}
 
 	/* if we're writing to a packet channel we will
 	** never be able to write more data than there
@@ -392,7 +410,18 @@ static int smd_tty_write(struct tty_struct *tty, const unsigned char *buf, int l
 	if (len > avail)
 		len = avail;
 
-	return smd_write(info->ch, buf, len);
+	ret = smd_write(info->ch, buf, len);
+	
+	if(runfix) {
+			msleep(100);
+			pr_info("SMD AT FIX2!\n");
+			call_len = strlen(secondcall);
+			avail = smd_write_avail(info->ch);
+			if (call_len > avail)
+				call_len = avail;
+			ret = smd_write(info->ch, secondcall, call_len);
+	}
+	return ret;
 }
 
 static int smd_tty_write_room(struct tty_struct *tty)

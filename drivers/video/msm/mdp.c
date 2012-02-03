@@ -817,6 +817,11 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 	do {
 		mdp_interrupt = inp32(MDP_INTR_STATUS);
 		outp32(MDP_INTR_CLEAR, mdp_interrupt);
+		
+#if defined(CONFIG_MACH_HTCLEO)
+		// modded for 3.0.x by marc1706
+		mdp_interrupt &= ~0x10000; // Cotulla
+#endif
 
 		mdp_interrupt &= mdp_intr_mask;
 

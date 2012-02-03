@@ -105,7 +105,7 @@ void __init msm_map_common_io(void)
 static struct map_desc qsd8x50_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_DEVICE(CSR),
-	MSM_DEVICE(TMR),
+	MSM_DEVICE(GPT),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
 	MSM_DEVICE(CLK_CTL),
@@ -113,16 +113,22 @@ static struct map_desc qsd8x50_io_desc[] __initdata = {
 	MSM_DEVICE(SCPLL),
 	MSM_DEVICE(AD5),
 	MSM_DEVICE(MDC),
-	MSM_DEVICE(TCSR),
+	MSM_DEVICE(TS),
+	MSM_DEVICE(SSBI),
+	MSM_DEVICE(TSSC),
+	MSM_DEVICE(RAM_CONSOLE),
 #if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
 	defined(CONFIG_DEBUG_MSM_UART3)
 	MSM_DEVICE(DEBUG_UART),
 #endif
+	MSM_DEVICE(TCSR),
 	{
 		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
+		.pfn =      __phys_to_pfn(MSM_SHARED_RAM_PHYS),
 		.length =   MSM_SHARED_RAM_SIZE,
 		.type =     MT_DEVICE,
 	},
+	MSM_DEVICE(SDC2),
 };
 
 void __init msm_map_qsd8x50_io(void)

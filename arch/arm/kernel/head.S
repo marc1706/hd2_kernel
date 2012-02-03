@@ -219,7 +219,13 @@ __create_page_tables:
 	orr	r6, r7, r0
 	str	r6, [r3]
 
-#ifdef CONFIG_DEBUG_LL
+/* HTC LEO test code */
+	add 	r0, r4, #0xf0000000 >> 18
+	orr 	r3, r7, #0x20000000
+	str 	r3, [r0]
+
+/* #ifdef CONFIG_DEBUG_LL */
+#if 0
 #ifndef CONFIG_DEBUG_ICEDCC
 	/*
 	 * Map in IO space for serial debugging.
@@ -258,6 +264,20 @@ __create_page_tables:
 	orr	r3, r7, #0x7c000000
 	str	r3, [r0]
 #endif
+
+#ifdef CONFIG_MACH_HTCLEO
+	 /*
+	 *	I small life sign test for HTC Leo 
+	 *	We mapping the addresses for the vibration GPIO
+	 */
+#if 0
+	add 	r0, r4, #0xff000000 >> 18
+/*	orr 	r3, r7, #0xA9000000 */
+	orr 	r3, r7, #0x20000000
+	str 	r3, [r0]
+#endif
+#endif
+
 #ifdef CONFIG_ARCH_RPC
 	/*
 	 * Map in screen at 0x02000000 & SCREEN2_BASE
@@ -348,6 +368,17 @@ __secondary_data:
  *  r13 = *virtual* address to jump to upon completion
  */
 __enable_mmu:
+
+
+/*
+	MOV	R3, #0xA9000000
+	ORR	R3, R3, #0x800
+	ORR	R3, R3, #0x00C
+	LDR	R1, [R3]
+	ORR	R1, R1, #0x20
+	STR	R1, [R3]
+*/
+
 #if defined(CONFIG_ALIGNMENT_TRAP) && __LINUX_ARM_ARCH__ < 6
       orr     r0, r0, #CR_A
 #else
