@@ -27,6 +27,7 @@
 #include <asm/io.h>
 
 #include "clock.h"
+#include "clock-pcom.h"
 #include "proc_comm.h"
 
 //#define ENABLE_CLOCK_INFO   1
