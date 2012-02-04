@@ -709,7 +709,7 @@ static struct platform_device qsd_device_spi = {
 ///////////////////////////////////////////////////////////////////////
 // KGSL (HW3D support)#include <linux/android_pmem.h>
 ///////////////////////////////////////////////////////////////////////
-/*
+
 static struct resource msm_kgsl_resources[] =
 {
 	{
@@ -754,7 +754,7 @@ static struct platform_device msm_kgsl_device =
 	.resource	= msm_kgsl_resources,
 	.num_resources	= ARRAY_SIZE(msm_kgsl_resources),
 };
-*/
+
 ///////////////////////////////////////////////////////////////////////
 // Memory 
 ///////////////////////////////////////////////////////////////////////
@@ -951,8 +951,7 @@ static struct platform_device *devices[] __initdata =
 	&msm_device_i2c,
 	&ds2746_battery_pdev,
 	&htc_battery_pdev,
-	//&msm_kgsl_device,
-	&msm_kgsl_3d0,
+	&msm_kgsl_device,
 	&msm_camera_sensor_s5k3e2fx,
 	&htcleo_flashlight_device,
 	&htc_headset_mgr,
@@ -1082,8 +1081,9 @@ static void __init htcleo_init(void)
 	mdelay(100);
 	htcleo_kgsl_power(true);
 	
-	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
-	platform_device_register(&msm_device_hsusb);
+	//msm_device_hsusb_peripheral.dev.platform_data = &msm_hsusb_pdata;
+	//platform_device_register(&msm_device_hsusb_peripheral);
+	//platform_device_register(&msm_device_hsusb_otg);
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 	msm_device_uart_dm1.name = "msm_serial_hs_bcm"; /* for bcm */
     	msm_device_uart_dm1.resource[3].end = 6;
@@ -1109,10 +1109,9 @@ static void __init htcleo_init(void)
 static void __init htcleo_fixup(struct machine_desc *desc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
-	/* Blink the camera LED shortly to show that we're alive! */
 	mi->nr_banks = 1;
 	mi->bank[0].start = MSM_EBI1_BANK0_BASE;
-	mi->bank[0].node = PHYS_TO_NID(MSM_EBI1_BANK0_BASE);
+	//mi->bank[0].node = PHYS_TO_NID(MSM_EBI1_BANK0_BASE);
 	mi->bank[0].size = MSM_EBI1_BANK0_SIZE;
 }
 
@@ -1136,8 +1135,8 @@ static void __init htcleo_allocate_memory_regions(void)
 	size = pmem_sf_size;
 	if (size) {
 		addr = alloc_bootmem(size);
-		mdp_pmem_pdata.start = __pa(addr);
-		mdp_pmem_pdata.size = size;
+		//android_pmem_pdata.start = __pa(addr);
+		android_pmem_pdata.size = size;
 		pr_info("allocating %lu bytes at %p (%lx physical) for sf "
 			"pmem arena\n", size, addr, __pa(addr));
 	}
@@ -1145,7 +1144,7 @@ static void __init htcleo_allocate_memory_regions(void)
 	size = pmem_adsp_size;
 	if (size) {
 		addr = alloc_bootmem(size);
-		android_pmem_adsp_pdata.start = __pa(addr);
+		//android_pmem_adsp_pdata.start = __pa(addr);
 		android_pmem_adsp_pdata.size = size;
 		pr_info("allocating %lu bytes at %p (%lx physical) for adsp "
 			"pmem arena\n", size, addr, __pa(addr));
@@ -1157,7 +1156,7 @@ static void __init htcleo_map_io(void)
 	msm_map_qsd8x50_io();
 
 	htcleo_allocate_memory_regions();
-	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
+	//msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 	
 #if defined(CONFIG_VERY_EARLY_CONSOLE)
 // Init our consoles _really_ early

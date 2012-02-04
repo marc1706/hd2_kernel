@@ -123,6 +123,9 @@
 #define MSM_VFE_PHYS          0xA0F00000
 #define MSM_VFE_SIZE          SZ_1M
 
+#define MSM_GPU_REG_PHYS      0xA0000000
+#define MSM_GPU_REG_SIZE      0x00020000
+
 // Originally this does not need to be defined,
 // but is required to make early_ramconsole work.
 // These values must match the values used in
