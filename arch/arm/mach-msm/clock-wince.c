@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/device.h>
 
 #include <mach/msm_iomap.h>
 #include <asm/io.h>
@@ -1069,6 +1070,7 @@ static int pc_pll_request(unsigned id, unsigned on)
 /*
  * Standard clock functions defined in include/linux/clk.h
  */
+/*
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *clk;
@@ -1089,77 +1091,398 @@ found_it:
 	return clk;
 }
 EXPORT_SYMBOL(clk_get);
+*/
+
+/*
+ * Find the correct struct clk for the device and connection ID.
+ * We do slightly fuzzy matching here:
+ *  An entry with a NULL ID is assumed to be a wildcard.
+ *  If an entry has a device ID, it must match
+ *  If an entry has a connection ID, it must match
+ * Then we take the most specific entry - with the following
+ * order of precedence: dev+con > dev only > con only.
+ */
+static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
+{
+	struct clk_lookup *p, *cl = NULL;
+	int match, best = 0;
+
+	list_for_each_entry(p, &clocks, node) {
+		match = 0;
+		if (p->dev_id) {
+			if (!dev_id || strcmp(p->dev_id, dev_id))
+				continue;
+			match += 2;
+		}
+		if (p->con_id) {
+			if (!con_id || strcmp(p->con_id, con_id))
+				continue;
+			match += 1;
+		}
+
+		if (match > best) {
+			cl = p;
+			if (match != 3)
+				best = match;
+			else
+				break;
+		}
+	}
+	return cl;
+}
+
+struct clk *clk_get_sys(const char *dev_id, const char *con_id)
+{
+	struct clk_lookup *cl;
+
+	mutex_lock(&clocks_mutex);
+	cl = clk_find(dev_id, con_id);
+	if (cl && !__clk_get(cl->clk))
+		cl = NULL;
+	mutex_unlock(&clocks_mutex);
+
+	return cl ? cl->clk : ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL(clk_get_sys);
+
+struct clk *clk_get(struct device *dev, const char *con_id)
+{
+	const char *dev_id = dev ? dev_name(dev) : NULL;
+
+	return clk_get_sys(dev_id, con_id);
+}
+EXPORT_SYMBOL(clk_get);
 
 void clk_put(struct clk *clk)
 {
+	__clk_put(clk);
 }
 EXPORT_SYMBOL(clk_put);
 
+void clkdev_add(struct clk_lookup *cl)
+{
+	mutex_lock(&clocks_mutex);
+	list_add_tail(&cl->node, &clocks);
+	mutex_unlock(&clocks_mutex);
+}
+EXPORT_SYMBOL(clkdev_add);
+
+void __init clkdev_add_table(struct clk_lookup *cl, size_t num)
+{
+	mutex_lock(&clocks_mutex);
+	while (num--) {
+		list_add_tail(&cl->node, &clocks);
+		cl++;
+	}
+	mutex_unlock(&clocks_mutex);
+}
+
+#define MAX_DEV_ID	20
+#define MAX_CON_ID	16
+
+struct clk_lookup_alloc {
+	struct clk_lookup cl;
+	char	dev_id[MAX_DEV_ID];
+	char	con_id[MAX_CON_ID];
+};
+
+struct clk_lookup * __init_refok
+clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
+{
+	struct clk_lookup_alloc *cla;
+
+	cla = __clkdev_alloc(sizeof(*cla));
+	if (!cla)
+		return NULL;
+
+	cla->cl.clk = clk;
+	if (con_id) {
+		strlcpy(cla->con_id, con_id, sizeof(cla->con_id));
+		cla->cl.con_id = cla->con_id;
+	}
+
+	if (dev_fmt) {
+		va_list ap;
+
+		va_start(ap, dev_fmt);
+		vscnprintf(cla->dev_id, sizeof(cla->dev_id), dev_fmt, ap);
+		cla->cl.dev_id = cla->dev_id;
+		va_end(ap);
+	}
+
+	return &cla->cl;
+}
+EXPORT_SYMBOL(clkdev_alloc);
+
+int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
+	struct device *dev)
+{
+	struct clk *r = clk_get(dev, id);
+	struct clk_lookup *l;
+
+	if (IS_ERR(r))
+		return PTR_ERR(r);
+
+	l = clkdev_alloc(r, alias, alias_dev_name);
+	clk_put(r);
+	if (!l)
+		return -ENODEV;
+	clkdev_add(l);
+	return 0;
+}
+EXPORT_SYMBOL(clk_add_alias);
+
+/*
+ * clkdev_drop - remove a clock dynamically allocated
+ */
+void clkdev_drop(struct clk_lookup *cl)
+{
+	mutex_lock(&clocks_mutex);
+	list_del(&cl->node);
+	mutex_unlock(&clocks_mutex);
+	kfree(cl);
+}
+EXPORT_SYMBOL(clkdev_drop);
+
+/* Find the voltage level required for a given rate. */
+static int find_vdd_level(struct clk *clk, unsigned long rate)
+{
+	int level;
+
+	for (level = 0; level < ARRAY_SIZE(clk->fmax); level++)
+		if (rate <= clk->fmax[level])
+			break;
+
+	if (level == ARRAY_SIZE(clk->fmax)) {
+		pr_err("Rate %lu for %s is greater than highest Fmax\n", rate,
+			clk->dbg_name);
+		return -EINVAL;
+	}
+
+	return level;
+}
+
+/* Update voltage level given the current votes. */
+static int update_vdd(struct clk_vdd_class *vdd_class)
+{
+	int level, rc;
+
+	for (level = ARRAY_SIZE(vdd_class->level_votes)-1; level > 0; level--)
+		if (vdd_class->level_votes[level])
+			break;
+
+	if (level == vdd_class->cur_level)
+		return 0;
+
+	rc = vdd_class->set_vdd(vdd_class, level);
+	if (!rc)
+		vdd_class->cur_level = level;
+
+	return rc;
+}
+
+/* Vote for a voltage level corresponding to a clock's rate. */
+static int vote_rate_vdd(struct clk *clk, unsigned long rate)
+{
+	int level;
+
+	if (!clk->vdd_class)
+		return 0;
+
+	level = find_vdd_level(clk, rate);
+	if (level < 0)
+		return level;
+
+	return vote_vdd_level(clk->vdd_class, level);
+}
+
+/* Remove vote for a voltage level corresponding to a clock's rate. */
+static void unvote_rate_vdd(struct clk *clk, unsigned long rate)
+{
+	int level;
+
+	if (!clk->vdd_class)
+		return;
+
+	level = find_vdd_level(clk, rate);
+	if (level < 0)
+		return;
+
+	unvote_vdd_level(clk->vdd_class, level);
+}
+
+/*
+ * Standard clock functions defined in include/linux/clk.h
+ */
 int clk_enable(struct clk *clk)
 {
+	int ret = 0;
 	unsigned long flags;
-	if (clk->id == P_ACPU_CLK)
-	{
-		return -ENOTSUPP;
+	struct clk *parent;
+
+	if (!clk)
+		return 0;
+
+	spin_lock_irqsave(&clk->lock, flags);
+	if (clk->count == 0) {
+		parent = clk_get_parent(clk);
+
+		ret = clk_enable(parent);
+		if (ret)
+			goto err_enable_parent;
+		ret = clk_enable(clk->depends);
+		if (ret)
+			goto err_enable_depends;
+
+		ret = vote_rate_vdd(clk, clk->rate);
+		if (ret)
+			goto err_vote_vdd;
+		if (clk->ops->enable)
+			ret = clk->ops->enable(clk);
+		if (ret)
+			goto err_enable_clock;
+	} else if (clk->flags & CLKFLAG_HANDOFF_RATE) {
+		/*
+		 * The clock was already enabled by handoff code so there is no
+		 * need to enable it again here. Clearing the handoff flag will
+		 * prevent the lateinit handoff code from disabling the clock if
+		 * a client driver still has it enabled.
+		 */
+		clk->flags &= ~CLKFLAG_HANDOFF_RATE;
+		goto out;
 	}
-	spin_lock_irqsave(&clocks_lock, flags);
 	clk->count++;
-	if (clk->count == 1)
-		pc_clk_enable(clk->id);
-	spin_unlock_irqrestore(&clocks_lock, flags);
+out:
+	spin_unlock_irqrestore(&clk->lock, flags);
+
 	return 0;
+
+err_enable_clock:
+	unvote_rate_vdd(clk, clk->rate);
+err_vote_vdd:
+	clk_disable(clk->depends);
+err_enable_depends:
+	clk_disable(parent);
+err_enable_parent:
+	spin_unlock_irqrestore(&clk->lock, flags);
+	return ret;
 }
 EXPORT_SYMBOL(clk_enable);
 
 void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&clocks_lock, flags);
-	BUG_ON(clk->count == 0);
+
+	if (!clk)
+		return;
+
+	spin_lock_irqsave(&clk->lock, flags);
+	if (WARN(clk->count == 0, "%s is unbalanced", clk->dbg_name))
+		goto out;
+	if (clk->count == 1) {
+		struct clk *parent = clk_get_parent(clk);
+
+		if (clk->ops->disable)
+			clk->ops->disable(clk);
+		unvote_rate_vdd(clk, clk->rate);
+		clk_disable(clk->depends);
+		clk_disable(parent);
+	}
 	clk->count--;
-	if (clk->count == 0)
-		pc_clk_disable(clk->id);
-	spin_unlock_irqrestore(&clocks_lock, flags);
+out:
+	spin_unlock_irqrestore(&clk->lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
 
+int clk_reset(struct clk *clk, enum clk_reset_action action)
+{
+	if (!clk->ops->reset)
+		return -ENOSYS;
+
+	return clk->ops->reset(clk, action);
+}
+EXPORT_SYMBOL(clk_reset);
+
 unsigned long clk_get_rate(struct clk *clk)
 {
-	return pc_clk_get_rate(clk->id);
+	if (!clk->ops->get_rate)
+		return 0;
+
+	return clk->ops->get_rate(clk);
 }
 EXPORT_SYMBOL(clk_get_rate);
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	int ret;
-	if (clk->flags & CLKFLAG_MAX) {
-		ret = pc_clk_set_max_rate(clk->id, rate);
-		if (ret)
-			return ret;
-	}
-	if (clk->flags & CLKFLAG_MIN) {
-		ret = pc_clk_set_min_rate(clk->id, rate);
-		if (ret)
-			return ret;
+	unsigned long start_rate, flags;
+	int rc;
+
+	if (!clk->ops->set_rate)
+		return -ENOSYS;
+
+	spin_lock_irqsave(&clk->lock, flags);
+	if (clk->count) {
+		start_rate = clk->rate;
+		/* Enforce vdd requirements for target frequency. */
+		rc = vote_rate_vdd(clk, rate);
+		if (rc)
+			goto err_vote_vdd;
+		rc = clk->ops->set_rate(clk, rate);
+		if (rc)
+			goto err_set_rate;
+		/* Release vdd requirements for starting frequency. */
+		unvote_rate_vdd(clk, start_rate);
+	} else {
+		rc = clk->ops->set_rate(clk, rate);
 	}
 
-	if (clk->flags & CLKFLAG_MAX ||
-		clk->flags & CLKFLAG_MIN)
-		return ret;
+	if (!rc)
+		clk->rate = rate;
 
-	return pc_clk_set_rate(clk->id, rate);
+	spin_unlock_irqrestore(&clk->lock, flags);
+	return rc;
+
+err_set_rate:
+	unvote_rate_vdd(clk, rate);
+err_vote_vdd:
+	spin_unlock_irqrestore(&clk->lock, flags);
+	return rc;
 }
 EXPORT_SYMBOL(clk_set_rate);
 
+long clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	if (!clk->ops->round_rate)
+		return -ENOSYS;
+
+	return clk->ops->round_rate(clk, rate);
+}
+EXPORT_SYMBOL(clk_round_rate);
+
+int clk_set_max_rate(struct clk *clk, unsigned long rate)
+{
+	if (!clk->ops->set_max_rate)
+		return -ENOSYS;
+
+	return clk->ops->set_max_rate(clk, rate);
+}
+EXPORT_SYMBOL(clk_set_max_rate);
+
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
-	return -ENOSYS;
+	if (!clk->ops->set_parent)
+		return 0;
+
+	return clk->ops->set_parent(clk, parent);
 }
 EXPORT_SYMBOL(clk_set_parent);
 
 struct clk *clk_get_parent(struct clk *clk)
 {
-	return ERR_PTR(-ENOSYS);
+	if (!clk->ops->get_parent)
+		return NULL;
+
+	return clk->ops->get_parent(clk);
 }
 EXPORT_SYMBOL(clk_get_parent);
 
@@ -1167,21 +1490,41 @@ int clk_set_flags(struct clk *clk, unsigned long flags)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
-	return pc_clk_set_flags(clk->id, flags);
+	if (!clk->ops->set_flags)
+		return -ENOSYS;
+
+	return clk->ops->set_flags(clk, flags);
 }
 EXPORT_SYMBOL(clk_set_flags);
 
+static struct clock_init_data __initdata *clk_init_data;
 
-void __init msm_clock_init(void)
+void __init msm_clock_init(struct clock_init_data *data)
 {
-	struct clk *clk;
+	unsigned n;
+	struct clk_lookup *clock_tbl;
+	size_t num_clocks;
 
-	spin_lock_init(&clocks_lock);
-	mutex_lock(&clocks_mutex);
-	for (clk = msm_clocks_8x50; clk && clk->name; clk++) {
-		list_add_tail(&clk->list, &clocks);
+	clk_init_data = data;
+	if (clk_init_data->init)
+		clk_init_data->init();
+
+	clock_tbl = data->table;
+	num_clocks = data->size;
+
+	for (n = 0; n < num_clocks; n++) {
+		struct clk *clk = clock_tbl[n].clk;
+		struct clk *parent = clk_get_parent(clk);
+		clk_set_parent(clk, parent);
+		if (clk->ops->handoff && !(clk->flags & CLKFLAG_HANDOFF_RATE)) {
+			if (clk->ops->handoff(clk)) {
+				clk->flags |= CLKFLAG_HANDOFF_RATE;
+				clk_enable(clk);
+			}
+		}
 	}
-	mutex_unlock(&clocks_mutex);
+
+	clkdev_add_table(clock_tbl, num_clocks);
 }
 
 void clk_enter_sleep(int from_idle)
@@ -1191,7 +1534,7 @@ void clk_enter_sleep(int from_idle)
 void clk_exit_sleep(void)
 {
 }
-
+/*
 int clks_print_running(void)
 {
 	struct clk *clk;
@@ -1259,37 +1602,48 @@ int clks_allow_tcxo_locked_debug(void)
 	return !clk_on_count;
 }
 EXPORT_SYMBOL(clks_allow_tcxo_locked_debug);
+*/
 
-
-/* The bootloader and/or AMSS may have left various clocks enabled.
- * Disable any clocks that belong to us (CLKFLAG_AUTO_OFF) but have
- * not been explicitly enabled by a clk_enable() call.
+/*
+ * The bootloader and/or AMSS may have left various clocks enabled.
+ * Disable any clocks that have not been explicitly enabled by a
+ * clk_enable() call and don't have the CLKFLAG_SKIP_AUTO_OFF flag.
  */
 static int __init clock_late_init(void)
 {
+	unsigned n, count = 0;
 	unsigned long flags;
-	struct clk *clk;
-	unsigned count = 0;
+	int ret = 0;
 
-	mutex_lock(&clocks_mutex);
-	list_for_each_entry(clk, &clocks, list) {
-		if (clk->flags & CLKFLAG_AUTO_OFF) {
-			spin_lock_irqsave(&clocks_lock, flags);
-			if (!clk->count && clk->id != P_MDP_CLK) {
+	clock_debug_init(clk_init_data);
+	for (n = 0; n < clk_init_data->size; n++) {
+		struct clk *clk = clk_init_data->table[n].clk;
+		bool handoff = false;
+
+		clock_debug_add(clk);
+		if (!(clk->flags & CLKFLAG_SKIP_AUTO_OFF)) {
+			spin_lock_irqsave(&clk->lock, flags);
+			if (!clk->count && clk->ops->auto_off) {
 				count++;
-				pc_clk_disable(clk->id);
+				clk->ops->auto_off(clk);
 			}
-			spin_unlock_irqrestore(&clocks_lock, flags);
+			if (clk->flags & CLKFLAG_HANDOFF_RATE) {
+				clk->flags &= ~CLKFLAG_HANDOFF_RATE;
+				handoff = true;
+			}
+			spin_unlock_irqrestore(&clk->lock, flags);
+			/*
+			 * Calling clk_disable() outside the lock is safe since
+			 * it doesn't need to be atomic with the flag change.
+			 */
+			if (handoff)
+				clk_disable(clk);
 		}
 	}
-	mutex_unlock(&clocks_mutex);
 	pr_info("clock_late_init() disabled %d unused clocks\n", count);
-
-	// reset imem config, I guess all devices need this so somewhere here would be good.
-	// it needs to be moved to somewhere else.
-	//writel( 0, MSM_IMEM_BASE ); // IMEM addresses have to ve checked and enabled
-	//pr_info("reset imem_config\n");
-	return 0;
+	if (clk_init_data->late_init)
+		ret = clk_init_data->late_init();
+	return ret;
 }
 
 struct clk_ops clk_ops_pcom = {
@@ -1298,7 +1652,7 @@ struct clk_ops clk_ops_pcom = {
 	.auto_off = pc_clk_disable,
 //	.reset = pc_clk_reset,
 	.set_rate = pc_clk_set_rate,
-	.set_min_rate = pc_clk_set_min_rate,
+//	.set_min_rate = pc_clk_set_min_rate,
 	.set_max_rate = pc_clk_set_max_rate,
 	.set_flags = pc_clk_set_flags,
 	.get_rate = pc_clk_get_rate,
