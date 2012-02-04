@@ -33,6 +33,7 @@
 #include <mach/peripheral-loader.h>
 #include <mach/socinfo.h>
 
+#include "board-htcleo.h"
 #include "smd_private.h"
 
 #define MAX_SMD_TTYS 37
