@@ -33,6 +33,7 @@
 #include "proc_comm.h"
 #include "board-htcleo.h"
 #include "devices.h"
+#include "dex_comm.h"
 
 
 typedef uint16_t UINT;
@@ -521,14 +522,14 @@ static uint8_t SHARP_DEINIT[12] =
 #define SPI_CS  20
 
 #define LCM_GPIO_CFG(gpio, func) \
-    PCOM_GPIO_CFG(gpio, func, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_16MA)
+    GPIO_CFG(gpio, func, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_16MA)
 
 static uint32_t spi_on_gpio_table[] =
 {
 	LCM_GPIO_CFG(SPI_CLK, 1),
 	LCM_GPIO_CFG(SPI_CS, 1),
 	LCM_GPIO_CFG(SPI_DO, 1),
-	PCOM_GPIO_CFG(SPI_DI, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_16MA),
+	GPIO_CFG(SPI_DI, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_16MA),
 };
 
 static uint32_t spi_off_gpio_table[] =
@@ -536,7 +537,7 @@ static uint32_t spi_off_gpio_table[] =
 	LCM_GPIO_CFG(SPI_CLK, 0),
 	LCM_GPIO_CFG(SPI_CS, 0),
 	LCM_GPIO_CFG(SPI_DO, 0),
-	PCOM_GPIO_CFG(SPI_DI, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_16MA),
+	GPIO_CFG(SPI_DI, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_16MA),
 };
 
 static int spi_gpio_switch(int on)
