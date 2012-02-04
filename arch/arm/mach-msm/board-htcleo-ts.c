@@ -31,6 +31,7 @@
 #include "board-htcleo-ts.h"
 #include "gpio_chip.h"
 #include "proc_comm.h"
+#include "dex_comm.h"
 
 
 
@@ -408,7 +409,7 @@ static irqreturn_t htcleo_ts_irq_handler(int irq, void *dev_id)
 
 static uint32_t touch_on_gpio_table[] =
 {
-	PCOM_GPIO_CFG(HTCLEO_GPIO_TS_IRQ, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_8MA),
+	GPIO_CFG(HTCLEO_GPIO_TS_IRQ, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_8MA),
 };
 
 static int htcleo_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
