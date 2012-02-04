@@ -44,6 +44,9 @@
 #include <mach/board_htc.h>
 #include <mach/hardware.h>
 #include <mach/system.h>
+#include <mach/pmic.h>
+#include <mach/camera.h>
+#include <mach/memory.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_flashlight.h>
 #include <mach/msm_serial_hs.h>
@@ -54,6 +57,7 @@
 
 #include <mach/board-htcleo-microp.h>
 
+#include "acpuclock.h"
 #include "board-htcleo.h"
 #include "board-htcleo-ts.h"
 #include "devices.h"
@@ -256,9 +260,15 @@ static struct i2c_board_info base_i2c_devices[] =
 // USB 
 ///////////////////////////////////////////////////////////////////////
 
+/*
+ * I'm pretty sure USB will fail with 3.0 since the code changed
+ * significantly. Please refer to board-qsd8x50.c for new code
+ */
+
 extern void notify_usb_connected(int);
 
 static int htcleo_phy_init_seq[] = {0x0C, 0x31,0x0C, 0x31, 0x30, 0x32, 0x1D, 0x0D, 0x1D, 0x10, -1};
+
 
 static void htcleo_usb_phy_reset(void)
 {
@@ -434,8 +444,8 @@ static struct platform_device android_usb_device = {
 
 static uint32_t flashlight_gpio_table[] =
 {
-	PCOM_GPIO_CFG(HTCLEO_GPIO_FLASHLIGHT_TORCH, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
-	PCOM_GPIO_CFG(HTCLEO_GPIO_FLASHLIGHT_FLASH, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(HTCLEO_GPIO_FLASHLIGHT_TORCH, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(HTCLEO_GPIO_FLASHLIGHT_FLASH, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
 };
 
 static int config_htcleo_flashlight_gpios(void)
@@ -461,48 +471,64 @@ static struct platform_device htcleo_flashlight_device =
 	},
 };
 
+int pmic_set_flash_led_current(enum pmic8058_leds id, unsigned mA)
+{
+	int rc;
+	rc = pmic_flash_led_set_current(mA);
+	return rc;
+}
+static struct msm_camera_sensor_flash_src msm_flash_src = {
+	.flash_sr_type = MSM_CAMERA_FLASH_SRC_PMIC,
+	._fsrc.pmic_src.num_of_src = 1,
+	._fsrc.pmic_src.low_current  = 30,
+	._fsrc.pmic_src.high_current = 100,
+	._fsrc.pmic_src.led_src_1 = 0,
+	._fsrc.pmic_src.led_src_2 = 0,
+	._fsrc.pmic_src.pmic_set_current = pmic_set_flash_led_current,
+};
+
 ///////////////////////////////////////////////////////////////////////
 // Camera
 ///////////////////////////////////////////////////////////////////////
 
 static uint32_t camera_off_gpio_table[] =
 {
-	PCOM_GPIO_CFG(0, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT0 */
-	PCOM_GPIO_CFG(1, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT1 */
-	PCOM_GPIO_CFG(2, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT2 */
-	PCOM_GPIO_CFG(3, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT3 */
-	PCOM_GPIO_CFG(4, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT4 */
-	PCOM_GPIO_CFG(5, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT5 */
-	PCOM_GPIO_CFG(6, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT6 */
-	PCOM_GPIO_CFG(7, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT7 */
-	PCOM_GPIO_CFG(8, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT8 */
-	PCOM_GPIO_CFG(9, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT9 */
-	PCOM_GPIO_CFG(10, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT10 */
-	PCOM_GPIO_CFG(11, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT11 */
-	PCOM_GPIO_CFG(12, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* PCLK */
-	PCOM_GPIO_CFG(13, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* HSYNC */
-	PCOM_GPIO_CFG(14, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* VSYNC */
-	PCOM_GPIO_CFG(15, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* MCLK */
+	GPIO_CFG(0, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT0 */
+	GPIO_CFG(1, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT1 */
+	GPIO_CFG(2, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT2 */
+	GPIO_CFG(3, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT3 */
+	GPIO_CFG(4, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT4 */
+	GPIO_CFG(5, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT5 */
+	GPIO_CFG(6, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT6 */
+	GPIO_CFG(7, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT7 */
+	GPIO_CFG(8, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT8 */
+	GPIO_CFG(9, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT9 */
+	GPIO_CFG(10, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT10 */
+	GPIO_CFG(11, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT11 */
+	GPIO_CFG(12, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* PCLK */
+	GPIO_CFG(13, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* HSYNC */
+	GPIO_CFG(14, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* VSYNC */
+	GPIO_CFG(15, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* MCLK */
 };
 
 static uint32_t camera_on_gpio_table[] =
 {
-	PCOM_GPIO_CFG(0, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT0 */
-	PCOM_GPIO_CFG(1, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT1 */
-	PCOM_GPIO_CFG(2, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT2 */
-	PCOM_GPIO_CFG(3, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT3 */
-	PCOM_GPIO_CFG(4, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT4 */
-	PCOM_GPIO_CFG(5, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT5 */
-	PCOM_GPIO_CFG(6, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT6 */
-	PCOM_GPIO_CFG(7, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT7 */
-	PCOM_GPIO_CFG(8, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT8 */
-	PCOM_GPIO_CFG(9, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT9 */
-	PCOM_GPIO_CFG(10, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT10 */
-	PCOM_GPIO_CFG(11, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT11 */
-	PCOM_GPIO_CFG(12, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_16MA), /* PCLK */
-	PCOM_GPIO_CFG(13, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* HSYNC */
-	PCOM_GPIO_CFG(14, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* VSYNC */
-	PCOM_GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_8MA), /* MCLK */
+	GPIO_CFG(0, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT0 */
+	GPIO_CFG(1, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT1 */
+	GPIO_CFG(2, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT2 */
+	GPIO_CFG(3, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT3 */
+	GPIO_CFG(4, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT4 */
+	GPIO_CFG(5, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT5 */
+	GPIO_CFG(6, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT6 */
+	GPIO_CFG(7, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT7 */
+	GPIO_CFG(8, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT8 */
+	GPIO_CFG(9, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT9 */
+	GPIO_CFG(10, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT10 */
+	GPIO_CFG(11, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT11 */
+	GPIO_CFG(12, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_16MA), /* PCLK */
+	GPIO_CFG(13, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* HSYNC */
+	GPIO_CFG(14, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* VSYNC */
+	GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_8MA), /* MCLK */
 };
 
 void config_camera_on_gpios(void)
@@ -539,31 +565,26 @@ static struct msm_camera_device_platform_data msm_camera_device_data =
 	.ioext.appsz  = MSM_CLK_CTL_SIZE,
 };
 
-static struct camera_flash_cfg msm_camera_sensor_flash_cfg = {
-	.camera_flash		= flashlight_control,
-	.num_flash_levels	= FLASHLIGHT_NUM,
-	.low_temp_limit		= 5,
-	.low_cap_limit		= 15,
+static struct msm_camera_sensor_flash_data flash_s5k3e2fx = {
+	.flash_type = MSM_CAMERA_FLASH_LED,
+	.flash_src  = &msm_flash_src
 };
 
-static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data =
-{
-	.sensor_name = "s5k3e2fx",
-	.sensor_reset = 144,
-	/* CAM1_PWDN, enabled in a9 */
-	//.sensor_pwd = 143,
-	/* CAM1_VCM_EN, enabled in a9 */
-	//.vcm_pwd = 31,
-	.pdata = &msm_camera_device_data,
-	.resource = msm_camera_resources,
-	.num_resources = ARRAY_SIZE(msm_camera_resources),
-	.flash_cfg = &msm_camera_sensor_flash_cfg,
+static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
+	.sensor_name    = "s5k3e2fx",
+	.sensor_reset   = 17,
+	.sensor_pwd     = 85,
+	/*.vcm_pwd = 31, */  /* CAM1_VCM_EN, enabled in a9 */
+	.vcm_enable     = 0,
+	.pdata          = &msm_camera_device_data,
+	.resource       = msm_camera_resources,
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
+	.flash_data     = &flash_s5k3e2fx
 };
 
-static struct platform_device msm_camera_sensor_s5k3e2fx =
-{
-	.name     = "msm_camera_s5k3e2fx",
-	.dev      = {
+static struct platform_device msm_camera_sensor_s5k3e2fx = {
+	.name      = "msm_camera_s5k3e2fx",
+	.dev       = {
 		.platform_data = &msm_camera_sensor_s5k3e2fx_data,
 	},
 };
@@ -588,7 +609,7 @@ MODULE_PARM_DESC(bdaddress, "BT MAC ADDRESS");
 
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 	/* Chip to Device */
-	.rx_wakeup_irq = MSM_GPIO_TO_INT(HTCLEO_GPIO_BT_HOST_WAKE),
+	.wakeup_irq = MSM_GPIO_TO_INT(HTCLEO_GPIO_BT_HOST_WAKE),
 	.inject_rx_on_wakeup = 0,
 	.cpu_lock_supported = 0,
 
@@ -688,7 +709,7 @@ static struct platform_device qsd_device_spi = {
 ///////////////////////////////////////////////////////////////////////
 // KGSL (HW3D support)#include <linux/android_pmem.h>
 ///////////////////////////////////////////////////////////////////////
-
+/*
 static struct resource msm_kgsl_resources[] =
 {
 	{
@@ -733,55 +754,88 @@ static struct platform_device msm_kgsl_device =
 	.resource	= msm_kgsl_resources,
 	.num_resources	= ARRAY_SIZE(msm_kgsl_resources),
 };
-
+*/
 ///////////////////////////////////////////////////////////////////////
 // Memory 
 ///////////////////////////////////////////////////////////////////////
 
-static struct android_pmem_platform_data mdp_pmem_pdata = {
-	.name		= "pmem",
-	.no_allocator	= 0,
-	.cached		= 1,
+static struct android_pmem_platform_data android_pmem_kernel_ebi1_pdata = {
+	.name = PMEM_KERNEL_EBI1_DATA_NAME,
+	/* if no allocator_type, defaults to PMEM_ALLOCATORTYPE_BITMAP,
+	 * the only valid choice at this time. The board structure is
+	 * set to all zeros by the C runtime initialization and that is now
+	 * the enum value of PMEM_ALLOCATORTYPE_BITMAP, now forced to 0 in
+	 * include/linux/android_pmem.h.
+	 */
+	.cached = 0,
+};
+
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+
+static struct android_pmem_platform_data android_pmem_kernel_smi_pdata = {
+	.name = PMEM_KERNEL_SMI_DATA_NAME,
+	/* if no allocator_type, defaults to PMEM_ALLOCATORTYPE_BITMAP,
+	 * the only valid choice at this time. The board structure is
+	 * set to all zeros by the C runtime initialization and that is now
+	 * the enum value of PMEM_ALLOCATORTYPE_BITMAP, now forced to 0 in
+	 * include/linux/android_pmem.h.
+	 */
+	.cached = 0,
+};
+
+#endif
+
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name = "pmem",
+	.allocator_type = PMEM_ALLOCATORTYPE_ALLORNOTHING,
+	.cached = 1,
 };
 
 static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.name		= "pmem_adsp",
-	.no_allocator	= 0,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
 	.cached		= 1,
 };
 
-
-static struct android_pmem_platform_data android_pmem_venc_pdata = {
-	.name		= "pmem_venc",
-	.start		= MSM_PMEM_VENC_BASE,
-	.size		= MSM_PMEM_VENC_SIZE,
-	.no_allocator	= 0,
-	.cached		= 1,
+static struct android_pmem_platform_data android_pmem_smipool_pdata = {
+	.name = "pmem_smipool",
+	.size = MSM_PMEM_SMI_SIZE,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
 };
 
-static struct platform_device android_pmem_mdp_device = {
-	.name		= "android_pmem",
-	.id		= 0,
-	.dev		= {
-		.platform_data = &mdp_pmem_pdata
-	},
+static struct platform_device android_pmem_device = {
+	.name = "android_pmem",
+	.id = 0,
+	.dev = { .platform_data = &android_pmem_pdata },
 };
 
 static struct platform_device android_pmem_adsp_device = {
-	.name		= "android_pmem",
-	.id		= 4,
-	.dev		= {
-		.platform_data = &android_pmem_adsp_pdata,
-	},
+	.name = "android_pmem",
+	.id = 1,
+	.dev = { .platform_data = &android_pmem_adsp_pdata },
 };
 
-static struct platform_device android_pmem_venc_device = {
-	.name		= "android_pmem",
-	.id		= 5,
-	.dev		= {
-		.platform_data = &android_pmem_venc_pdata,
-	},
+static struct platform_device android_pmem_smipool_device = {
+	.name = "android_pmem",
+	.id = 2,
+	.dev = { .platform_data = &android_pmem_smipool_pdata },
 };
+
+
+static struct platform_device android_pmem_kernel_ebi1_device = {
+	.name = "android_pmem",
+	.id = 3,
+	.dev = { .platform_data = &android_pmem_kernel_ebi1_pdata },
+};
+
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+static struct platform_device android_pmem_kernel_smi_device = {
+	.name = "android_pmem",
+	.id = 4,
+	.dev = { .platform_data = &android_pmem_kernel_smi_pdata },
+};
+#endif
 
 ///////////////////////////////////////////////////////////////////////
 // RAM-Console
@@ -881,10 +935,14 @@ static struct platform_device *devices[] __initdata =
 	&msm_device_nand,
 	&msm_device_smd,
 	&msm_device_rtc,
-	&android_pmem_mdp_device,
+	&android_pmem_kernel_ebi1_device,
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+	&android_pmem_kernel_smi_device,
+#endif
+	&android_pmem_device,
 	&android_pmem_adsp_device,
-	&android_pmem_venc_device,
-	&msm_device_hsusb,
+	&android_pmem_smipool_device,
+	//&msm_device_hsusb,
 	&usb_mass_storage_device,
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	&rndis_device,
@@ -893,7 +951,8 @@ static struct platform_device *devices[] __initdata =
 	&msm_device_i2c,
 	&ds2746_battery_pdev,
 	&htc_battery_pdev,
-	&msm_kgsl_device,
+	//&msm_kgsl_device,
+	&msm_kgsl_3d0,
 	&msm_camera_sensor_s5k3e2fx,
 	&htcleo_flashlight_device,
 	&htc_headset_mgr,
@@ -946,7 +1005,7 @@ static void __init msm_device_i2c_init(void)
 ///////////////////////////////////////////////////////////////////////
 // Clocks
 ///////////////////////////////////////////////////////////////////////
-
+/*
 static struct msm_acpu_clock_platform_data htcleo_clock_data = {
 	.acpu_switch_time_us	= 20,
 	.max_speed_delta_khz	= 256000,
@@ -955,7 +1014,7 @@ static struct msm_acpu_clock_platform_data htcleo_clock_data = {
 	.wait_for_irq_khz	= 245000,
 //	.wait_for_irq_khz	= 19200,   // TCXO
 };
-
+*/
 ///////////////////////////////////////////////////////////////////////
 // Reset
 ///////////////////////////////////////////////////////////////////////
@@ -1005,8 +1064,8 @@ static void __init htcleo_init(void)
 
 	do_grp_reset();
 	do_sdc1_reset();
-
-	msm_acpu_clock_init(&htcleo_clock_data);
+	msm_clock_init(&qds8x50_clock_init_data);
+	acpuclk_init(&acpuclk_8x50_soc_data);
 	
 	init_dex_comm();
 
@@ -1024,6 +1083,7 @@ static void __init htcleo_init(void)
 	htcleo_kgsl_power(true);
 	
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+	platform_device_register(&msm_device_hsusb);
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 	msm_device_uart_dm1.name = "msm_serial_hs_bcm"; /* for bcm */
     	msm_device_uart_dm1.resource[3].end = 6;

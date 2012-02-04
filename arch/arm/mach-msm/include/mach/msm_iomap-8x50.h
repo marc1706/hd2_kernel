@@ -120,6 +120,9 @@
 #define MSM_AD5_PHYS          0xAC000000
 #define MSM_AD5_SIZE          (SZ_1M*13)
 
+#define MSM_VFE_PHYS          0xA0F00000
+#define MSM_VFE_SIZE          SZ_1M
+
 // Originally this does not need to be defined,
 // but is required to make early_ramconsole work.
 // These values must match the values used in

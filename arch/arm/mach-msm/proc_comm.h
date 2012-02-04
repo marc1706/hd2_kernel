@@ -169,6 +169,12 @@ enum {
 	PCOM_CMD_FAIL_PROC_COMM_NOT_INIT,
 };
 
+// old enum from .35 for usb
+enum {
+	PCOM_CLKRGM_APPS_RESET_USB_PHY	= 34,
+	PCOM_CLKRGM_APPS_RESET_USBH	= 37,
+};
+
 #ifdef CONFIG_MSM_PROC_COMM
 void msm_proc_comm_reset_modem_now(void);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
