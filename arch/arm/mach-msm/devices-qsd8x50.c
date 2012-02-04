@@ -465,7 +465,7 @@ struct platform_device msm_device_dmov = {
 };
 
 #define MSM_SDC1_BASE         0xA0300000
-#define MSM_SDC2_BASE         0xA0400000
+#define MSM_SDC2_BASE_PHYS    0xA0400000
 #define MSM_SDC3_BASE         0xA0500000
 #define MSM_SDC4_BASE         0xA0600000
 static struct resource resources_sdc1[] = {
@@ -495,8 +495,8 @@ static struct resource resources_sdc1[] = {
 
 static struct resource resources_sdc2[] = {
 	{
-		.start	= MSM_SDC2_BASE,
-		.end	= MSM_SDC2_BASE + SZ_4K - 1,
+		.start	= MSM_SDC2_BASE_PHYS,
+		.end	= MSM_SDC2_BASE_PHYS + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
