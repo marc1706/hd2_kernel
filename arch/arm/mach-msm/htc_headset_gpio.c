@@ -201,7 +201,7 @@ static irqreturn_t mic_irq_handler(int irq, void *dev_id)
 
 	do {
 		value1 = gpio_get_value(pjack_info->mic_detect);
-		set_irq_type(pjack_info->irq_mic, value1 ? IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
+		irq_set_irq_type(pjack_info->irq_mic, value1 ? IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
 		value2 = gpio_get_value(pjack_info->mic_detect);
 	} while (value1 != value2 && retry_limit-- > 0);
 
@@ -223,7 +223,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
 
 	do {
 		value1 = gpio_get_value(pjack_info->audio_jack_detect);
-		set_irq_type(pjack_info->irq_jack, value1 ?
+		irq_set_irq_type(pjack_info->irq_jack, value1 ?
 				IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
 		value2 = gpio_get_value(pjack_info->audio_jack_detect);
 	} while (value1 != value2 && retry_limit-- > 0);
@@ -370,7 +370,7 @@ static int audiojack_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err_request_detect_irq;
 
-		ret = set_irq_wake(pjack_info->irq_jack, 1);
+		ret = irq_set_irq_wake(pjack_info->irq_jack, 1);
 		if (ret < 0)
 			goto err_set_irq_wake;
 		pr_info("DET IRQ Registered!");
