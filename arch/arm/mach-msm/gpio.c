@@ -666,10 +666,22 @@ postcore_initcall(msm_gpio_init);
 int gpio_configure(unsigned int gpio, unsigned long flags)
 {
 	unsigned long irq_flags;
-	struct msm_gpio_chip *msm_chip = get_irq_chip_data((gpio + FIRST_GPIO_IRQ));
-	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
+	struct msm_gpio_chip *msm_chip = irq_get_chip_data((gpio + FIRST_GPIO_IRQ));
+/*
+	spin_lock_irqsave(&msm_chip->lock, irq_flags);
 	msm_gpio_configure(&msm_chip->chip, gpio, flags);
-	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
+	spin_unlock_irqrestore(&msm_chip->lock, irq_flags);
+*/
+	unsigned offset = gpio;
+
+	spin_lock_irqsave(&msm_chip->lock, irq_flags);
+	/* level triggered interrupts are also latched */
+	if (!(__raw_readl(msm_chip->regs.int_edge) & BIT(offset)))
+		msm_gpio_clear_detect_status(msm_chip, offset);
+	msm_chip->int_enable[0] &= ~BIT(offset);
+	__raw_writel(msm_chip->int_enable[0], msm_chip->regs.int_en);
+	mb();
+	spin_unlock_irqrestore(&msm_chip->lock, irq_flags);
 	return 0;
 }
 EXPORT_SYMBOL(gpio_configure);

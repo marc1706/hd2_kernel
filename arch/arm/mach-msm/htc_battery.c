@@ -1021,11 +1021,7 @@ static int htc_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
-		if (machine_is_paradise()) {
-			if (htc_batt_info.rep.batt_temp >= 500 ||
-				htc_batt_info.rep.batt_temp <= 0)
-				val->intval =  POWER_SUPPLY_HEALTH_OVERHEAT;
-		} else if (machine_is_spade()) {
+		if (machine_is_spade()) {
 			if (htc_batt_info.rep.batt_temp >= 450 ||
 				htc_batt_info.rep.batt_temp <= 0)
 				val->intval =  POWER_SUPPLY_HEALTH_OVERHEAT;
@@ -1067,7 +1063,7 @@ static int htc_battery_get_property(struct power_supply *psy,
 
 #define HTC_BATTERY_ATTR(_name)							\
 {										\
-	.attr = { .name = #_name, .mode = S_IRUGO, .owner = THIS_MODULE },	\
+	.attr = { .name = #_name, .mode = S_IRUGO},	\
 	.show = htc_battery_show_property,					\
 	.store = NULL,								\
 }
