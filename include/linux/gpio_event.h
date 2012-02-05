@@ -113,7 +113,7 @@ extern int gpio_event_input_func(struct gpio_event_input_devs *input_devs,
 struct gpio_event_input_info {
 	/* initialize to gpio_event_input_func */
 	struct gpio_event_info info;
-	struct timespec debounce_time;
+	ktime_t debounce_time;
 	ktime_t poll_time;
 	uint16_t flags;
 	uint16_t type;

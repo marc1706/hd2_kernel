@@ -103,7 +103,7 @@ static struct gpio_event_input_info htcleo_keypad_key_info = {
 	.info.no_suspend = true,
 	.flags = 0,
 	.type = EV_KEY,
-	.debounce_time.tv_nsec = 5 * NSEC_PER_MSEC,
+	.debounce_time.tv64 = 5 * NSEC_PER_MSEC,
 	.keymap = htcleo_keypad_key_map,
 	.keymap_size = ARRAY_SIZE(htcleo_keypad_key_map)
 };
