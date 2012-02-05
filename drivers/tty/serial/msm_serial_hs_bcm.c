@@ -35,7 +35,7 @@
  * GPIO on the UART CTS, and the first RX byte is known (for example, with the
  * Bluetooth Texas Instruments HCILL protocol), since the first RX byte will
  * always be lost. RTS will be asserted even while the UART is off in this mode
- * of operation. See msm_serial_hs_platform_data.rx_wakeup_irq.
+ * of operation. See msm_serial_hs_platform_data.wakeup_irq.
  */
 
 #include <linux/module.h>
@@ -65,7 +65,7 @@
 #include <mach/dma.h>
 #include <mach/msm_serial_hs.h>
 /* for bcm */
-#include "../../arch/arm/mach-msm/gpio_chip.h"
+#include "../../../arch/arm/mach-msm/gpio_chip.h"
 #include <linux/uaccess.h>
 
 #include "msm_serial_hs_hwreg.h"
@@ -670,7 +670,7 @@ static void msm_hs_set_termios(struct uart_port *uport,
  *  Standard API, Transmitter
  *  Any character in the transmit shift register is sent
  */
-static unsigned int msm_hs_tx_empty(struct uart_port *uport)
+unsigned int msm_hs_tx_empty(struct uart_port *uport)
 {
 	unsigned int data;
 	unsigned int ret = 0;
@@ -686,6 +686,7 @@ static unsigned int msm_hs_tx_empty(struct uart_port *uport)
 
 	return ret;
 }
+EXPORT_SYMBOL(msm_hs_tx_empty);
 
 /*
  *  Standard API, Stop transmitter.
@@ -1464,7 +1465,7 @@ static irqreturn_t msm_hs_rx_wakeup_isr(int irq, void *dev)
 		printk(KERN_INFO "-- CHIP HOST_WAKE=HIGH --\n");
 		#endif
 		msm_uport->host_wakeup_level = 1;
-		set_irq_type(msm_uport->rx_wakeup.irq, IRQF_TRIGGER_LOW);
+		irq_set_irq_type(msm_uport->rx_wakeup.irq, IRQF_TRIGGER_LOW);
 		if ((msm_uport->host_want_sleep)
 				&& (msm_uport->clk_state == MSM_HS_CLK_ON)) {
 			#if 1	/* testing purpose, but do "not" remove it */
@@ -1504,7 +1505,7 @@ static irqreturn_t msm_hs_rx_wakeup_isr(int irq, void *dev)
 		#endif
 
 		msm_uport->host_wakeup_level = 0;
-		set_irq_type(msm_uport->rx_wakeup.irq, IRQF_TRIGGER_HIGH);
+		irq_set_irq_type(msm_uport->rx_wakeup.irq, IRQF_TRIGGER_HIGH);
 		bcm_msm_hs_request_clock_on_locked(uport);
 /*
 		* btld will set BT_CHIP_WAKEUP HIGH later in this case,
@@ -1656,7 +1657,7 @@ static int msm_hs_startup(struct uart_port *uport)
 	tx->dma_in_flight = 0;
 
 	tx->xfer.complete_func = msm_hs_dmov_tx_callback;
-	tx->xfer.execute_func = NULL;
+	//tx->xfer.execute_func = NULL;
 
 	tx->command_ptr->cmd = CMD_LC |
 	    CMD_DST_CRCI(msm_uport->dma_tx_crci) | CMD_MODE_BOX;
@@ -1672,7 +1673,7 @@ static int msm_hs_startup(struct uart_port *uport)
 
 	/* Turn on Uart Receive */
 	rx->xfer.complete_func = msm_hs_dmov_rx_callback;
-	rx->xfer.execute_func = NULL;
+	//rx->xfer.execute_func = NULL;
 
 	rx->command_ptr->cmd = CMD_LC |
 	    CMD_SRC_CRCI(msm_uport->dma_rx_crci) | CMD_MODE_BOX;
@@ -1701,7 +1702,7 @@ static int msm_hs_startup(struct uart_port *uport)
 		msm_uport->rx.is_brcm_rx_wake_locked = 0;
 
 		/* move from startup  **/
-		if (unlikely(set_irq_wake(msm_uport->rx_wakeup.irq, 1)))
+		if (unlikely(irq_set_irq_wake(msm_uport->rx_wakeup.irq, 1)))
 			return -ENXIO;
 
 		#ifdef USE_BCM_BT_CHIP	/* bt for bcm */
@@ -1837,13 +1838,13 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	if (unlikely(uport->irq < 0))
 		return -ENXIO;
 	*/
-	if (unlikely(set_irq_wake(uport->irq, 1)))
+	if (unlikely(irq_set_irq_wake(uport->irq, 1)))
 		return -ENXIO;
 
-	if (pdata == NULL || pdata->rx_wakeup_irq < 0)
+	if (pdata == NULL || pdata->wakeup_irq < 0)
 		msm_uport->rx_wakeup.irq = -1;
 	else {
-		msm_uport->rx_wakeup.irq = pdata->rx_wakeup_irq;
+		msm_uport->rx_wakeup.irq = pdata->wakeup_irq;
 		msm_uport->rx_wakeup.ignore = 1;
 		msm_uport->rx_wakeup.inject_rx = pdata->inject_rx_on_wakeup;
 		msm_uport->rx_wakeup.rx_to_inject = pdata->rx_to_inject;
@@ -2003,7 +2004,7 @@ static void msm_hs_shutdown(struct uart_port *uport)
 
 	/* disable irq wakeup when shutdown **/
 	if (use_low_power_rx_wakeup(msm_uport))
-		if (unlikely(set_irq_wake(msm_uport->rx_wakeup.irq, 0)))
+		if (unlikely(irq_set_irq_wake(msm_uport->rx_wakeup.irq, 0)))
 			return;
 
 	/* Remove it here to make sure wakelock is released when shutdown */

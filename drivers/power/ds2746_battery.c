@@ -907,15 +907,7 @@ int ds2746_blocking_notify(unsigned long val, void *v)
 
 	if (val == DS2784_CHARGING_CONTROL){
 		chg_ctl = *(int *) v;
-		if (machine_is_passionc()){
-			pr_info("[ds2746_batt] Switch charging %d\n", chg_ctl);
-			if (chg_ctl <= 2){
-				gpio_direction_output(22, !(!!chg_ctl));/*PNC*/
-				set_charger_ctrl(chg_ctl);
-			}
-			return 0;
-		}
-		else if (poweralg.battery.id_index != BATTERY_ID_UNKNOWN){
+		if (poweralg.battery.id_index != BATTERY_ID_UNKNOWN){
 			/* only notify at changes */
 			if (poweralg.charging_enable == chg_ctl)
 				return 0;

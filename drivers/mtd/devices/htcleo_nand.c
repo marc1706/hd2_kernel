@@ -47,6 +47,7 @@
 #endif
 
 #include "msm_nand.h"
+#include "../mtdcore.h"
 
 #define MSM_NAND_DMA_BUFFER_SIZE SZ_4K
 #define MSM_NAND_DMA_BUFFER_SLOTS \
@@ -2027,10 +2028,13 @@ void msm_nand_release(struct mtd_info *mtd)
 
 #ifdef CONFIG_MTD_PARTITIONS
 	/* Deregister partitions */
-	del_mtd_partitions(mtd);
+	//del_mtd_partitions(mtd);
 #endif
 	/* Deregister the device */
-	del_mtd_device(mtd);
+	//del_mtd_device(mtd);
+	
+	/* just mtd_device_unregister() now */
+	mtd_device_unregister(mtd);
 }
 EXPORT_SYMBOL_GPL(msm_nand_release);
 
