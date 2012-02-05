@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/clkdev.h>
 
 #include <mach/msm_iomap.h>
 #include <asm/io.h>
@@ -1130,119 +1131,6 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 	}
 	return cl;
 }
-
-struct clk *clk_get_sys(const char *dev_id, const char *con_id)
-{
-	struct clk_lookup *cl;
-
-	mutex_lock(&clocks_mutex);
-	cl = clk_find(dev_id, con_id);
-	if (cl && !__clk_get(cl->clk))
-		cl = NULL;
-	mutex_unlock(&clocks_mutex);
-
-	return cl ? cl->clk : ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get_sys);
-
-struct clk *clk_get(struct device *dev, const char *con_id)
-{
-	const char *dev_id = dev ? dev_name(dev) : NULL;
-
-	return clk_get_sys(dev_id, con_id);
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-	__clk_put(clk);
-}
-EXPORT_SYMBOL(clk_put);
-
-void clkdev_add(struct clk_lookup *cl)
-{
-	mutex_lock(&clocks_mutex);
-	list_add_tail(&cl->node, &clocks);
-	mutex_unlock(&clocks_mutex);
-}
-EXPORT_SYMBOL(clkdev_add);
-
-void __init clkdev_add_table(struct clk_lookup *cl, size_t num)
-{
-	mutex_lock(&clocks_mutex);
-	while (num--) {
-		list_add_tail(&cl->node, &clocks);
-		cl++;
-	}
-	mutex_unlock(&clocks_mutex);
-}
-
-#define MAX_DEV_ID	20
-#define MAX_CON_ID	16
-
-struct clk_lookup_alloc {
-	struct clk_lookup cl;
-	char	dev_id[MAX_DEV_ID];
-	char	con_id[MAX_CON_ID];
-};
-
-struct clk_lookup * __init_refok
-clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
-{
-	struct clk_lookup_alloc *cla;
-
-	cla = __clkdev_alloc(sizeof(*cla));
-	if (!cla)
-		return NULL;
-
-	cla->cl.clk = clk;
-	if (con_id) {
-		strlcpy(cla->con_id, con_id, sizeof(cla->con_id));
-		cla->cl.con_id = cla->con_id;
-	}
-
-	if (dev_fmt) {
-		va_list ap;
-
-		va_start(ap, dev_fmt);
-		vscnprintf(cla->dev_id, sizeof(cla->dev_id), dev_fmt, ap);
-		cla->cl.dev_id = cla->dev_id;
-		va_end(ap);
-	}
-
-	return &cla->cl;
-}
-EXPORT_SYMBOL(clkdev_alloc);
-
-int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
-	struct device *dev)
-{
-	struct clk *r = clk_get(dev, id);
-	struct clk_lookup *l;
-
-	if (IS_ERR(r))
-		return PTR_ERR(r);
-
-	l = clkdev_alloc(r, alias, alias_dev_name);
-	clk_put(r);
-	if (!l)
-		return -ENODEV;
-	clkdev_add(l);
-	return 0;
-}
-EXPORT_SYMBOL(clk_add_alias);
-
-/*
- * clkdev_drop - remove a clock dynamically allocated
- */
-void clkdev_drop(struct clk_lookup *cl)
-{
-	mutex_lock(&clocks_mutex);
-	list_del(&cl->node);
-	mutex_unlock(&clocks_mutex);
-	kfree(cl);
-}
-EXPORT_SYMBOL(clkdev_drop);
 
 /* Find the voltage level required for a given rate. */
 static int find_vdd_level(struct clk *clk, unsigned long rate)
