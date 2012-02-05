@@ -87,13 +87,14 @@ int qspi_send(unsigned char id, unsigned data)
 	return 0;
 }
 
-
+/*
 static int msm_spi_probe(struct spi_device *spi)
 {
 	printk(" %s \n", __func__);
 	spidev = spi;
 	return 0 ;
 }
+*/
 
 static int msm_spi_remove(struct platform_device *pdev)
 {
@@ -107,7 +108,7 @@ static struct spi_driver spi_qsd = {
 		.name  = "spi_qsd",
 		.owner = THIS_MODULE,
 	},
-	.probe         = msm_spi_probe,
+	//.probe         = msm_spi_probe,
 	.remove        = __devexit_p(msm_spi_remove),
 };
 
@@ -260,7 +261,7 @@ static int msm_spi_resume(struct platform_device *pdev)
 }
 
 static struct platform_driver msm_spi_driver = {
-	.probe          = msm_spi_probe,
+	//.probe          = msm_spi_probe,
 	.driver		= {
 		.name	= "spi_qsd",
 		.owner	= THIS_MODULE,
@@ -274,7 +275,7 @@ static struct platform_driver msm_spi_driver = {
 
 static int __init msm_spi_init(void)
 {
-	return platform_driver_register(&msm_spi_driver);
+	return platform_driver_probe(&msm_spi_driver, msm_spi_probe);
 }
 
 fs_initcall(msm_spi_init);

@@ -1971,7 +1971,8 @@ static int __init msm_serial_hs_init(void)
 		printk(KERN_ERR "%s failed to load\n", __func__);
 		return ret;
 	}
-	ret = platform_driver_register(&msm_serial_hs_platform_driver);
+	ret = platform_driver_probe(&msm_serial_hs_platform_driver,
+					msm_hs_probe);
 	if (ret) {
 		printk(KERN_ERR "%s failed to load\n", __func__);
 		uart_unregister_driver(&msm_hs_driver);
@@ -2055,7 +2056,6 @@ static void __exit msm_serial_hs_exit(void)
 }
 
 static struct platform_driver msm_serial_hs_platform_driver = {
-	.probe = msm_hs_probe,
 	.remove = msm_hs_remove,
 	.driver = {
 		   .name = "msm_serial_hs_bcm",
