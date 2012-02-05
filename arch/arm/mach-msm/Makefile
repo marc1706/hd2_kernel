@@ -22,7 +22,7 @@ endif
 obj-y += dex_comm.o
 ifdef CONFIG_MACH_HTCLEO
 obj-$(CONFIG_MSM_SMD) +=  smd_qmi_wince.o
-obj-y += clock-wince.o 
+obj-y += clock-wince.o clock-voter.o clock-dummy.o
 else
 obj-$(CONFIG_MSM_SMD) +=  smd_qmi.o
 obj-y += clock-pcom.o

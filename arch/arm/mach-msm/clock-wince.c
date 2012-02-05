@@ -1584,4 +1584,18 @@ struct clk_ops clk_ops_pcom = {
 //	.round_rate = pc_clk_round_rate,
 };
 
+struct clk_ops clk_ops_pcom_ext_config = {
+	.enable = pc_clk_enable,
+	.disable = pc_clk_disable,
+	.auto_off = pc_clk_disable,
+//	.reset = pc_reset,
+	.set_rate = pc_clk_set_rate,
+	.set_max_rate = pc_clk_set_max_rate,
+	.set_flags = pc_clk_set_flags,
+	.get_rate = pc_clk_get_rate,
+	.is_enabled = pc_clk_is_enabled,
+//	.round_rate = pc_clk_round_rate,
+//	.is_local = pc_clk_is_local,
+};
+
 late_initcall(clock_late_init);

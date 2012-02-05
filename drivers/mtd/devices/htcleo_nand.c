@@ -49,6 +49,8 @@
 #include "msm_nand.h"
 #include "../mtdcore.h"
 
+unsigned long msm_nand_phys;
+
 #define MSM_NAND_DMA_BUFFER_SIZE SZ_4K
 #define MSM_NAND_DMA_BUFFER_SLOTS \
 	(MSM_NAND_DMA_BUFFER_SIZE / (sizeof(((atomic_t *)0)->counter) * 8))
